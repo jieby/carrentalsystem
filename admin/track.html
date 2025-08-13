@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Start Tracking</title>
+  <script>
+    const carId = new URLSearchParams(location.search).get('car_id');
+
+    function sendLocation(lat, lng) {
+      fetch('/path/to/update_location.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `car_id=${carId}&latitude=${lat}&longitude=${lng}`
+      }).catch(err => {
+        // Save offline if fetch fails
+        let queue = JSON.parse(localStorage.getItem('offlineLocations') || '[]');
+        queue.push({ car_id: carId, lat, lng });
+        localStorage.setItem('offlineLocations', JSON.stringify(queue));
+      });
+    }
+
+    function resendOfflineData() {
+      const queue = JSON.parse(localStorage.getItem('offlineLocations') || '[]');
+      if (queue.length > 0) {
+        queue.forEach(loc => {
+          fetch('/path/to/update_location.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `car_id=${loc.car_id}&latitude=${loc.lat}&longitude=${loc.lng}`
+          });
+        });
+        localStorage.removeItem('offlineLocations');
+      }
+    }
+
+    function startTracking() {
+      resendOfflineData();
+      navigator.geolocation.watchPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        sendLocation(lat, lng);
+      }, console.error, {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 5000
+      });
+    }
+  </script>
+</head>
+<body onload="startTracking()">
+  <h2>Tracking car ID: <script>document.write(carId)</script></h2>
+  <p>Tracking active... this works offline too.</p>
+</body>
+</html>
