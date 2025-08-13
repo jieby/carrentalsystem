@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # PHP Application
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+      - ./assets/images:/var/www/html/assets/images
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=password
+      - DB_NAME=carrental
+    networks:
+      - carrental-network
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=carrental
+      - MYSQL_USER=carrental_user
+      - MYSQL_PASSWORD=carrental_pass
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - carrental-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      timeout: 20s
+      retries: 10
+      interval: 10s
+      start_period: 30s
+
+  # phpMyAdmin (optional, for database management)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      - PMA_HOST=db
+      - PMA_PORT=3306
+      - PMA_USER=root
+      - PMA_PASSWORD=password
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - carrental-network
+
+volumes:
+  mysql_data:
+
+networks:
+  carrental-network:
+    driver: bridge
